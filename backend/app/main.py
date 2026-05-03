@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .database import create_db_and_tables
 from .routers import auth, dashboard, entries, imports, users
 
 logger = logging.getLogger(__name__)
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
     yield
 
 

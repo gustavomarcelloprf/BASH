@@ -9,6 +9,7 @@ App web mobile-first para rastreio de horas em escritório jurídico via linguag
 cd backend
 cp .env.production.example .env   # edite com suas variáveis
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/alembic upgrade head                              # cria/atualiza schema
 .venv/bin/python seed.py
 .venv/bin/uvicorn app.main:app --reload   # http://localhost:8000
 
@@ -36,6 +37,15 @@ VITE_API_URL=https://<seu-projeto>.railway.app
 ```
 
 O `vercel.json` já configura o rewrite para SPA.
+
+## Migrations (Alembic)
+
+```bash
+cd backend
+.venv/bin/alembic upgrade head                              # aplica todas as migrations pendentes
+.venv/bin/alembic revision --autogenerate -m "descrição"   # gera nova migration a partir dos modelos
+.venv/bin/alembic downgrade -1                             # reverte a última migration
+```
 
 ## Importando dados históricos
 
