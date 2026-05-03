@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminMetricsBar, UserRow, ImportPanel } from "../components/Admin";
 import { AlertList } from "../components/AlertList";
 import { useAdminData } from "../hooks/useAdminData";
 import { useAlerts } from "../hooks/useAlerts";
 import { useAuthStore } from "../stores/auth";
+import { useToastStore } from "../stores/toast";
+import { api } from "../lib/api";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +17,26 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function Admin() {
+  const [exporting, setExporting] = useState(false);
+  const toast = useToastStore();
   const { users, roi: _roi, isLoading } = useAdminData();
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const resp = await api.post("/api/reports/generate", { period: "month" }, { responseType: "blob" });
+      const url = URL.createObjectURL(resp.data as Blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio_${new Date().toISOString().slice(0, 7)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.show("erro ao gerar PDF", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
   const { data: alerts = [] } = useAlerts();
   const currentUser = useAuthStore((s) => s.user);
 
@@ -99,6 +121,24 @@ export default function Admin() {
         <SectionLabel>importar</SectionLabel>
         <div className="px-4 pb-4" aria-live="polite">
           <ImportPanel />
+        </div>
+      </div>
+
+      <div className="border-t border-[#f0f0f0]">
+        <SectionLabel>relatórios</SectionLabel>
+        <div className="px-4 pb-4">
+          <button
+            onClick={exportPdf}
+            disabled={exporting}
+            className={`text-[13px] px-3 py-2 border border-[#e5e5e5] transition-colors duration-[120ms] ${
+              exporting
+                ? "text-[#aaa] pointer-events-none"
+                : "text-[#333] hover:border-[#111] hover:text-[#111] cursor-pointer"
+            }`}
+          >
+            {exporting ? "gerando..." : "exportar PDF"}
+          </button>
+          <p className="text-[11px] text-[#aaa] mt-2">relatório do mês atual · todas as entradas</p>
         </div>
       </div>
     </div>

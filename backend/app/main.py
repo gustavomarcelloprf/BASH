@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .routers import auth, dashboard, entries, imports, users
+from .routers import auth, dashboard, entries, imports, reports, users
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ app.include_router(entries.router)
 app.include_router(imports.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
+app.include_router(reports.router)
 
 
 @app.get("/health")
