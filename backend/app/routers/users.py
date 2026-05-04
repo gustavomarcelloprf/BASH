@@ -101,6 +101,22 @@ def update_role(
     )
 
 
+@router.delete("/{user_id}", status_code=200)
+def delete_user(
+    user_id: int,
+    current_user: Annotated[User, Depends(get_admin_user)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="registro não encontrado")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=403, detail="sem permissão para esta operação")
+    session.delete(user)
+    session.commit()
+    return {"message": "Usuário removido"}
+
+
 @router.patch("/{user_id}/status", response_model=UserOut)
 def update_status(
     user_id: int,

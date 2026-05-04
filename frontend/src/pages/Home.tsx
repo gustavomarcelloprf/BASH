@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { MetricsBar } from "../components/MetricsBar";
 import { ChatInput } from "../components/ChatInput";
 import { AlertList } from "../components/AlertList";
 import { EntryList } from "../components/EntryList";
 import { useAlerts } from "../hooks/useAlerts";
+import { useAuthStore } from "../stores/auth";
 
 export default function Home() {
   const { data: alerts = [] } = useAlerts();
   const [offline, setOffline] = useState(!navigator.onLine);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     const goOffline = () => setOffline(true);
@@ -55,6 +58,16 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           <EntryList />
         </div>
+        {user?.role === "admin" && (
+          <div className="border-t border-[#f0f0f0] px-4 py-3">
+            <Link
+              to="/admin"
+              className="text-[11px] text-[#999] hover:text-[#333] transition-colors duration-[120ms]"
+            >
+              Gerenciar usuários →
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

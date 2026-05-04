@@ -25,6 +25,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -100,8 +106,30 @@ def login(body: LoginRequest, session: Annotated[Session, Depends(get_session)])
             detail="credenciais inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta aguardando aprovação do administrador",
+        )
     token = create_access_token(user.email)
     return Token(access_token=token, token_type="bearer")
+
+
+@router.post("/register", status_code=201)
+def register(body: RegisterRequest, session: Annotated[Session, Depends(get_session)]):
+    existing = session.exec(select(User).where(User.email == body.email)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    user = User(
+        name=body.name,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        role="member",
+        is_active=False,
+    )
+    session.add(user)
+    session.commit()
+    return {"message": "Cadastro realizado. Aguarde aprovação do administrador."}
 
 
 @router.get("/me", response_model=UserOut)

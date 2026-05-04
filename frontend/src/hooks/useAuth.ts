@@ -2,12 +2,10 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
-import { useToastStore } from "../stores/toast";
 
 export function useAuth() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const toast = useToastStore();
 
   const login = useMutation({
     mutationFn: async (creds: { email: string; password: string }) => {
@@ -21,8 +19,12 @@ export function useAuth() {
       setAuth(user, token);
       navigate("/");
     },
-    onError: () => toast.show("email ou senha incorretos", "error"),
   });
 
-  return { login };
+  const register = useMutation({
+    mutationFn: (payload: { name: string; email: string; password: string }) =>
+      api.post("/api/auth/register", payload),
+  });
+
+  return { login, register };
 }
