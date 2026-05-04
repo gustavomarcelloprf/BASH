@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed frontend origins, e.g.:
     # CORS_ORIGINS=https://myapp.vercel.app,http://localhost:5173
     CORS_ORIGINS: str = "http://localhost:5173"
+    FRONTEND_URL: str = ""
     COLUMN_MAPPING: dict = {
         "data": "Data",
         "colaborador": "Nome",
