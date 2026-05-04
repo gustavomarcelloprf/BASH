@@ -8,7 +8,7 @@ export function MetricsBar() {
   const { data, isLoading } = useDashboard();
 
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-[#e5e5e5] h-16 flex items-center px-4 gap-6">
+    <div className="flex items-center gap-6">
       <span className="text-xs text-[#666]">
         {isLoading ? <Skeleton /> : <span className="font-mono font-bold text-[#111]">{data?.total_hours ?? 0}h</span>}
         {" · mês"}

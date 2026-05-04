@@ -2,7 +2,7 @@ import { useAdminData } from "../../hooks/useAdminData";
 import { useAlerts } from "../../hooks/useAlerts";
 
 function Skeleton() {
-  return <div className="w-10 h-3 bg-[#f0f0f0] animate-pulse" />;
+  return <div className="w-10 h-3 bg-[#f0f0f0] animate-pulse mx-auto" />;
 }
 
 export function AdminMetricsBar() {
@@ -24,13 +24,13 @@ export function AdminMetricsBar() {
   ];
 
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-[#e5e5e5] h-16 flex items-center justify-between px-3">
+    <div className="grid grid-cols-4 gap-4">
       {metrics.map((m) => (
         <div key={m.label} className="flex flex-col items-center">
           {isLoading && m.value === null ? (
             <Skeleton />
           ) : (
-            <span className="font-mono text-[18px] font-medium tabular-nums text-[#111]">
+            <span className="font-mono text-[20px] font-medium tabular-nums text-[#111]">
               {m.value ?? "—"}
             </span>
           )}

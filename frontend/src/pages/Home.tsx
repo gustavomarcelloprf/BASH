@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AppHeader } from "../components/AppHeader";
 import { MetricsBar } from "../components/MetricsBar";
 import { ChatInput } from "../components/ChatInput";
 import { AlertList } from "../components/AlertList";
 import { EntryList } from "../components/EntryList";
 import { useAlerts } from "../hooks/useAlerts";
 import { useAuthStore } from "../stores/auth";
+
+const CARD = "border border-[#e5e5e5] rounded-[12px] p-5 bg-white mb-4";
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold text-[#999] tracking-[0.08em] uppercase mb-3">
+      {children}
+    </p>
+  );
+}
 
 export default function Home() {
   const { data: alerts = [] } = useAlerts();
@@ -43,31 +54,44 @@ export default function Home() {
           sem conexão — seus dados serão enviados quando reconectar
         </div>
       )}
-      <div
-        className="mx-auto max-w-[480px] bg-white min-h-screen flex flex-col shadow-sm"
-        style={{ paddingTop: offline ? "40px" : undefined }}
-      >
-        <MetricsBar />
-        <ChatInput />
-        {alerts.length > 0 && (
-          <div className="py-3 border-b border-[#f0f0f0]">
-            <p className="px-4 mb-2 text-[11px] uppercase tracking-widest text-[#aaa]">alertas</p>
-            <AlertList alerts={alerts} />
+      <div className="mx-auto max-w-[480px] min-h-screen flex flex-col">
+        <AppHeader />
+        <div className="flex-1 px-4 pt-5 pb-8">
+
+          <div className={CARD}>
+            <SectionLabel>resumo do mês</SectionLabel>
+            <MetricsBar />
           </div>
-        )}
-        <div className="flex-1 overflow-y-auto">
-          <EntryList />
+
+          <div className={CARD}>
+            <SectionLabel>registrar tempo</SectionLabel>
+            <ChatInput />
+          </div>
+
+          {alerts.length > 0 && (
+            <div className={CARD}>
+              <SectionLabel>alertas</SectionLabel>
+              <AlertList alerts={alerts} />
+            </div>
+          )}
+
+          <div className={CARD}>
+            <SectionLabel>entradas</SectionLabel>
+            <EntryList />
+          </div>
+
+          {user?.role === "admin" && (
+            <div className="px-1">
+              <Link
+                to="/admin"
+                className="text-[11px] text-[#999] hover:text-[#333] transition-colors duration-[120ms]"
+              >
+                Gerenciar usuários →
+              </Link>
+            </div>
+          )}
+
         </div>
-        {user?.role === "admin" && (
-          <div className="border-t border-[#f0f0f0] px-4 py-3">
-            <Link
-              to="/admin"
-              className="text-[11px] text-[#999] hover:text-[#333] transition-colors duration-[120ms]"
-            >
-              Gerenciar usuários →
-            </Link>
-          </div>
-        )}
       </div>
     </div>
   );
