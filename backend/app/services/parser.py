@@ -125,9 +125,9 @@ def parse_regex(text: str) -> ParseResult:
 async def parse_llm(text: str, projects: list[str]) -> ParseResult:
     import json
 
-    from openai import AsyncOpenAI
+    import anthropic
 
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     today = date.today().isoformat()
 
     system_prompt = (
@@ -149,18 +149,14 @@ async def parse_llm(text: str, projects: list[str]) -> ParseResult:
         "- confidence: 0.9 se tudo claro, 0.7 se projeto inferido, 0.5 se ambíguo"
     )
 
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0,
+    message = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
         max_tokens=150,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text},
-        ],
+        system=system_prompt,
+        messages=[{"role": "user", "content": text}],
     )
 
-    data = json.loads(response.choices[0].message.content)
+    data = json.loads(message.content[0].text)
     confidence = float(data.get("confidence", 0.7))
     return ParseResult(
         hours=data.get("hours"),
@@ -175,7 +171,7 @@ async def parse_llm(text: str, projects: list[str]) -> ParseResult:
 
 async def parse(text: str, projects: list[str]) -> ParseResult:
     regex_result = parse_regex(text)
-    no_key = not settings.OPENAI_API_KEY
+    no_key = not settings.ANTHROPIC_API_KEY
 
     if regex_result.confidence >= 0.85 and no_key:
         return regex_result
