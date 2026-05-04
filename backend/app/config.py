@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
     ANTHROPIC_API_KEY: str = ""
     DEBUG: bool = False
+    # Comma-separated list of allowed frontend origins, e.g.:
+    # CORS_ORIGINS=https://myapp.vercel.app,http://localhost:5173
+    CORS_ORIGINS: str = "http://localhost:5173"
     COLUMN_MAPPING: dict = {
         "data": "Data",
         "colaborador": "Nome",
