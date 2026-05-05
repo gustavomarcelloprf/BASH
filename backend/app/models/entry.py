@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
@@ -14,4 +14,4 @@ class TimeEntry(SQLModel, table=True):
     raw_input: Optional[str] = None
     llm_confidence: Optional[float] = None
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -16,7 +16,7 @@ export function Toast() {
     <div
       style={{
         position: "fixed",
-        bottom: "24px",
+        bottom: "max(1rem, env(safe-area-inset-bottom))",
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 1000,

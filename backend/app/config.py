@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./dash.db"
-    SECRET_KEY: str = "change-me-in-production"
+    SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
     ANTHROPIC_API_KEY: str = ""
     DEBUG: bool = False

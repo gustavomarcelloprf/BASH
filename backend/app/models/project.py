@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
@@ -10,4 +10,4 @@ class Project(SQLModel, table=True):
     budget_hours: float = 0.0
     hourly_rate: float = 0.0
     status: str = "active"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -1,7 +1,11 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
+
+# Set SECRET_KEY before importing app
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing")
 
 from app.main import app
 from app.database import get_session

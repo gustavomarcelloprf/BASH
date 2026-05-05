@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -55,7 +55,7 @@ def hash_password(plain: str) -> str:
 
 
 def create_access_token(subject: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
     return jwt.encode(
         {"sub": subject, "exp": expire},
         settings.SECRET_KEY,
