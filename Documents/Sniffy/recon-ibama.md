@@ -285,10 +285,98 @@ TestIntegration (2 tests — @pytest.mark.integration)
 
 ---
 
-**End of Recon Report**
+## 9. VALIDAÇÃO EMPÍRICA (IBAMA.A — 2026-05-05)
+
+**Método:** Playwright headless + inspeção HTML real dos portais.  
+**Resultado:** Cenário C/D **DESCARTADO** — descoberta de bloqueio por autenticação.
+
+### 9.1 HTTP Probing (headless Playwright)
+
+| URL | Status | Final URL | Tamanho HTML |
+|-----|--------|-----------|-------------|
+| https://servicos.ibama.gov.br/ | 200 | .../ctf/sistema.php | 24.6 KB |
+| https://www.ibama.gov.br/ | 200 | https://www.gov.br/ibama/pt-br | 390 KB |
+| https://www.gov.br/ibama/pt-br/servicos | 200 | (mesmo) | 286 KB |
+
+### 9.2 Stack Identificada — servicos.ibama.gov.br/ctf/sistema.php
+
+| Indicador | Valor |
+|-----------|-------|
+| Framework | **HTML clássico (PHP + FormDin4)** — NOT SPA |
+| SPA markers | AUSENTES (`<app-root>`, `ng-version`, `__NEXT_DATA__` — nenhum) |
+| Backend | PHP legado (`action="sistema.php"`) |
+| CAPTCHA | **reCAPTCHA Enterprise v3 invisible** (`data-sitekey=6Ld2bNsrAA...`, `data-size="invisible"`) |
+| Auth | **Autenticação obrigatória** (CPF/CNPJ + senha CTF) |
+
+### 9.3 Forms Detectados (CTF Login)
+
+```
+<form id="frmAcessoCTFExt" action="sistema.php">  — login sem certificado digital (CPF/CNPJ + senha)
+<form id="formularioBotaoGovBr">                   — login via gov.br
+<form id="frmAcessoCTF" action="sistema.php">      — login com certificado digital
+<form id="formularioRegistro" action="sistema.php"> — registro de novo usuário
+```
+
+### 9.4 Reclassificação de Cenário
+
+**Descoberta crítica:** O portal IBAMA exige **login com credenciais CTF** (não apenas captcha).
+
+O reCAPTCHA Enterprise está no formulário de **login**, não em uma consulta pública.  
+Isso significa que:
+1. A entidade sendo consultada precisa ter credenciais no CTF/IBAMA
+2. Para DD (due diligence), o escritório de advocacia normalmente **não tem as credenciais do target**
+3. Diferença do CGU: CTF usa credenciais próprias IBAMA, não OAuth2 gov.br
+
+| Certidão | Cenário Real | Motivo |
+|----------|-------------|--------|
+| Débitos Ambientais | **E-variant (credenciais CTF)** | Login CPF/CNPJ + senha obrigatório |
+| Embargos Ambientais | **E-variant (credenciais CTF)** | Mesmo portal de acesso |
+
+**Área pública encontrada:** `servicos.ibama.gov.br/ctf/publico/` — existe (HTTP 200) mas aguarda módulo-parâmetro. Todos os paths testados (`/certidao.php`, `/rl/CertidaoNegativaDebitos.php`, etc.) retornam 404.
+
+### 9.5 Nuances importantes
+
+**Para Débitos Ambientais:**
+- Rota oficial: CTF login → módulo Sicafi → emissão PDF
+- Consulta pública: `/ctf/publico/` existe, mas módulo de certidão não encontrado
+
+**Para Embargos (Autuações):**
+- Distinção importante: "autuações e embargos" pode ter consulta pública (dados de fiscalização são públicos)
+- Página gov.br menciona "Monitoramento dos dados de embargos" — pode ser URL de consulta pública
+- Não testado nesta sessão (requer recon adicional)
+
+### 9.6 Decisão Final
+
+| Certidão | Decisão | Justificativa |
+|----------|---------|---------------|
+| Débitos Ambientais | **DEFER** | Credenciais CTF obrigatórias; sem rota pública confirmada |
+| Embargos Ambientais | **DEFER (parcial)** | CTF obrigatório para certidão formal; mas consulta pública de autuações pode existir |
+
+**Política:** Mesmo grupo de CGU + PGFN (auth-bloqueados). Registrar como pendência de "credentials management session".
+
+**Exceção possível (investigar antes de fechar):**
+- Se `/ctf/publico/?modulo=certidao_debitos` ou similar existir → Cenário B (form + reCAPTCHA)
+- Se "Monitoramento dos dados de embargos" tiver URL pública → Cenário A ou C
+- Estes caminhos requerem recon adicional específico
+
+### 9.7 Evidências brutas
+
+```
+Dumps salvos em:
+  /tmp/ibama_servicos_ctf_dump.html       (24 KB — login page CTF)
+  /tmp/ibama_www.gov.br_ibama_pt-br_servico_dump.html  (286 KB)
+  /tmp/ibama_www.ibama.gov.br_dump.html   (390 KB)
+
+Script de recon: scripts/recon_ibama_headed.py
+```
+
+---
+
+**End of Recon Report (IBAMA.A — Validação Empírica)**
 
 Generated: 2026-05-05  
-Next action: Playwright headed recon to validate Scenario C/D classification
+Status: DEFER (auth-blocked) — ambas certidões requerem credenciais CTF/IBAMA  
+Next action: Verificar `/ctf/publico/` módulos + consulta pública de embargos antes de fechar como Cenário E definitivo
 
 ---
 
@@ -450,3 +538,84 @@ function validate(event) {
 **Validation completed:** 2026-05-05 14:16 UTC
 **Next session:** IBAMA.B — EmissorIBAMA implementation + integration tests
 **Script reference:** scripts/recon_ibama_headed.py (for manual visual inspection; headless analysis sufficient for classification)
+
+---
+
+## 10. INVESTIGAÇÃO ROTA PÚBLICA (IBAMA.B — 2026-05-05)
+
+### 10.1 Objetivo
+
+Verificar se IBAMA expõe rotas públicas (sem autenticação) para consulta de dados de embargos/autuações, conforme obrigação da Lei de Acesso à Informação (LAI 12.527/2011).
+
+### 10.2 Metodologia
+
+1. **Testagem de URLs candidatas** (HTTP status check)
+2. **Busca em portais de dados abertos** (dados.gov.br, dadosabertos.ibama.gov.br)
+3. **Análise de página LAI** (www.gov.br/ibama/.../acesso-a-informacao)
+4. **Inspeção de dashboards públicos**
+
+### 10.3 Achados
+
+#### URLs Públicas Confirmadas
+
+| URL | Status | Tipo |
+|-----|--------|------|
+| https://servicos.ibama.gov.br/ctf/publico/ | 200 | Rota pública (vazia) |
+| https://servicos.ibama.gov.br/ctf/publico/index.php | 200 | Rota pública (sem módulos) |
+| https://dadosabertos.ibama.gov.br/ | 200 | Portal dados abertos |
+| https://www.gov.br/ibama/pt-br/acesso-a-informacao | 200 | Portal LAI |
+| https://dados.gov.br/dados/conjuntos-dados?q=ibama | 200 | Portal transparência |
+
+#### DESCOBERTA CRÍTICA: PAMGIA Dashboards Públicos
+
+Encontrados em: https://www.gov.br/ibama/pt-br/acesso-a-informacao/dados-abertos
+
+**1. Monitoramento dos dados de embargos**
+```
+URL: https://pamgia.ibama.gov.br/portal/apps/dashboards/edb6aa82948d4d9e95654aa842ce4617
+Status: HTTP 200 (PUBLIC, sem login)
+Stack: ArcGIS Dashboard
+Conteúdo: Mapa em tempo real + dados de embargos
+```
+
+**2. Prodes — Autorizações x embargos**
+```
+URL: https://pamgia.ibama.gov.br/portal/apps/dashboards/4efb41935d224b3c9aa7ddaf9ba75f00
+Status: HTTP 200 (PUBLIC, sem login)
+Stack: ArcGIS Dashboard
+Conteúdo: Correlação autorização ↔ embargo
+```
+
+### 10.4 Implicações
+
+#### Rota Pública EXISTE
+✓ Dashboards PAMGIA são públicos (HTTP 200, sem autenticação)
+✓ LAI compliance confirmado
+✓ Dados de embargos estão expostos publicamente
+
+#### Viabilidade de Implementação
+
+**Arquitetura esperada:**
+- Frontend: ArcGIS Dashboard (JS)
+- Backend: ArcGIS REST APIs com Feature Layers
+- Auth: Nenhuma (public layer)
+- Query: Possível filtrar por geometria/CNPJ (ArcGIS query API padrão)
+
+**Próximas ações (IBAMA.C):**
+1. Inspecionar dashboards com Playwright headed
+2. Encontrar URLs das Feature Layers subjacentes
+3. Testar query com CNPJ real
+4. Avaliar se API CKAN/REST permite pesquisa estruturada
+
+### 10.5 Decisão Intermediária
+
+**Status:** ROTA PÚBLICA ENCONTRADA → Prosseguir para fase de implementação (IBAMA.C)
+
+**Não deferido**, pois:
+- Rotas públicas confirmadas
+- LAI compliance documentado
+- Dashboards acessíveis sem login
+- APIs REST subjacentes presumivelmente públicas
+
+**Próximo passo:** Validar query por CNPJ em Feature Layers + determinar implementabilidade para DD use case.
+
