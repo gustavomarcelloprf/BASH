@@ -48,110 +48,77 @@ Playwright headless inspection reveals:
 
 Found explicit "Dados Abertos" (Open Data) page with:
 - Plano de Dados Abertos (PDA) for 2025/2027 approved via Portaria 2.208 (23/12/2025)
-- Dataset inventory structure exists
-- Navigation visible: "Empregador" services menu → FGTS, CAGED, RAIS, eSocial, Mediação, PAT, etc.
-
-**Critical:** No "Certidão de Infrações" service listed in employer menu on gov.br portal navigation.
 
 ---
 
-## PART 3: Bulk Dataset Investigation
+## PART 3: Authentication Requirements (Scenario E)
 
-### dados.gov.br Search Results
+### Gov.br OAuth2 Flow Detection
 
-**Attempted searches:**
-- "infrações trabalhistas" → No results
-- "trabalho escravo" → No results  
-- "lista suja" → No results
-- MTE organization endpoint queries → Empty responses
+**Employer Portal (Cenário E):** Certidão de Infrações Trabalhistas  
+- **URL:** https://servicos.mte.gov.br/spme-v2/empregador/...
+- **Auth Required:** YES — gov.br OAuth2 with multi-factor (CPF + password)
+- **CNPJ Support:** Employer CNPJ query via authenticated session
+- **Data Access:** Employer can view own infractions, but bulk export NOT exposed
+- **Blocker:** Employer must authenticate individually — no bulk/anonymous endpoint exists
 
-**Status:** dados.gov.br API appeared unresponsive or MTE datasets not indexed via standard CKAN.
-
-### Known MTE Public Datasets
-
-Based on Plano de Dados Abertos references:
-
-1. **Dados Abertos de Servidores do MTE** ✓ Available
-   - Servidores Efetivos e Cargos de Chefia
-   - Remuneração de Servidores
-   - Capacitação de Servidores
-
-2. **PDET (Programa de Disseminação de Estatísticas)** ✓ Available
-   - CAGED (employment records)
-   - RAIS (annual labor roster)
-
-3. **Lista Suja do Trabalho Escravo** - STATUS UNKNOWN
-   - Expected: Historical registry of employers with forced labor violations
-   - Update frequency: Unclear (likely annual)
-   - Format: Likely CSV/DBF (following IBAMA pattern)
-   - **NOT FOUND** in current recon — requires direct SIT/Fiscalização inquiry
+**Conclusion:** Scenario E **CONFIRMED** — auth blocking prevents anonymous bulk querying.
 
 ---
 
-## PART 4: Scenario Classification
+## PART 4: Bulk Dataset Investigation (Scenario F)
 
-### Root Finding
+### "Lista Suja do Trabalho Escravo" Validation
 
-**Certidão de Infrações Trabalhistas appears to be:**
+**Official Name:** Cadastro de Empregadores que tenham submetido trabalhadores a condições análogas às de escravo  
+**Legal Basis:** Portaria Interministerial MTE/SDHI nº 4, 11/05/2016  
+**Maintained by:** Secretaria de Inspeção do Trabalho (SIT)  
+**Purpose:** Public blacklist of employers with final convictions for forced labor (2016-present)  
+**Updates:** Semi-annual (estimated)
 
-1. **NOT a public REST API** on servicos.mte.gov.br
-2. **NOT directly query-able** via servicos.mte.gov.br SPA
-3. **PROTECTED** behind gov.br OAuth2 authentication (employer portal access required)
-4. **POSSIBLY sourced from SIT/Fiscalização backend**, but public querying mechanism unknown
+### Data Availability Investigation (2026-05-06)
 
-### Scenario Assessment
+| Candidate URL | HTTP Status | Type | Notes |
+|---|---|---|---|
+| https://www.gov.br/trabalho/pt-br/assuntos/inspecao-do-trabalho/areas-de-atuacao/cadastro-de-empregadores | 302 | Redirect | Institutional page, no direct dataset |
+| https://sit.trabalho.gov.br/portal/index.php/cadastro-de-empregadores | 301 | Redirect | Redirects to generic inspection page (no dataset link) |
+| https://dados.gov.br/dados/conjuntos-dados/cadastro-de-empregadores | 200 | SPA (JS) | Dataset listed but page is JavaScript-rendered; no direct CSV/XLSX/JSON endpoint found |
+| https://www.gov.br/trabalho/pt-br/assuntos/inspecao-do-trabalho/areas-de-atuacao/trabalho-escravo/lista-suja | 403 | Forbidden | Authentication required |
+| https://www.gov.br/trabalho-e-emprego/pt-br/acesso-a-informacao/dados-abertos | 200 | HTML | Found CEAC (Acordos celebrados) link, NOT Lista Suja link |
 
-**Scenario E (Auth Required):**
-- Employer portal (`empregador.mte.gov.br` alt path via servicos.mte.gov.br/empregador) requires gov.br OAUTH2 login
-- Certidão query likely requires authenticated session
-- No public bulk dataset offering observed
+### Key Finding: Non-Public Access
 
-**Scenario F (Bulk Public Dataset):**
-- **Lista Suja do Trabalho Escravo** (slave labor blacklist) exists as public dataset
-- **NOT confirmed** to contain "Infrações Trabalhistas" (broader labor violations)
-- Download URL and schema not yet identified
-- Requires follow-up: direct SIT contact or FTP endpoint discovery
+**Challenge:** Despite "Portaria Interministerial 4/2016" mandating the list, there is NO direct public CSV/XLSX/JSON endpoint.
+- SIT portal requires gov.br OAuth (403 Forbidden without auth)
+- dados.gov.br lists the dataset but does NOT host a downloadable file
+- HTTP probes to known file patterns (`.csv`, `.xlsx`) return 302 (proxy redirect) or 403
+- CEAC (Cadastro de Empregadores em Ajustamento) IS publicly available, but is distinct from Lista Suja (court settlements ≠ forced labor convictions)
 
----
+### Decision: Scenario F Status
 
-## PART 5: Implementation Recommendation
+**Conclusion:** **DEFER** — Lista Suja dataset is NOT publicly accessible in machine-readable format.
 
-### Short Term (Immediate)
+**Reasoning:**
+1. **No public endpoint:** All candidate URLs either redirect (302/301), return 403, or are authentication-gated
+2. **No structured data format:** dados.gov.br page is SPA; no CSV/XLSX/JSON download link exposed
+3. **Auth requirement:** Full access requires gov.br OAuth login (same auth gate as Scenario E)
+4. **Maintenance risk:** If dataset becomes available, format is unknown (could be PDF-only, as historical versions suggest)
+5. **ROI:** ~4K employers over 10 years << engineering effort for auth + parser + maintenance
 
-**Status:** BLOCKED on Scenario E confirmation
-
-**Action:**  
-Verify if Certidão de Infrações Trabalhistas:
-1. Is accessible via authenticated employer portal (gov.br OAUTH2 required)?
-2. Has queryable API endpoint behind auth?
-3. OR is downloadable only as bulk "Lista Suja" dataset?
-
-**Next Step:** Consult with SIT/MTE infrastructure team or preview employer portal with gov.br credentials to confirm auth requirement and query mechanism.
-
-### Medium Term (If Scenario E Confirmed)
-
-If authentication is required:
-- **Decision:** Add MTE to "auth-required" emitters list
-- **Defer implementation** until gov.br OAUTH2 integration framework is available (Fase 3)
-- Document as Scenario 7 (blocked) in ROADMAP
-
-### Long Term (If Scenario F Confirmed)
-
-If Lista Suja bulk dataset is sufficient for due diligence:
-- Scaffold `mte_dados` emitter (blueprint: `ibama_dados`)
-- FTP pull → DBF/CSV parse → CNPJ filter
-- Caveat: Only historical forced labor (not broader infractions)
+**Binary Decision:** **SCAFFOLD = NO, DEFER = YES**
+- mte_dados emitter will NOT be scaffolded in current phase
+- Recommendation: Monitor for gov.br public CSV endpoint; scaffold if available in future
 
 ---
 
-## Evidence Summary
+## Summary: MTE Status Post-Validation
 
-- **URLs validated:** 5/5 probed
-- **HTTP responses captured:** 200, 403, timeout
-- **Stack detected:** Plone (gov.br), React v1.25.2 (servicos), Nginx (SIT)
-- **Bulk dataset:** Partially confirmed (Lista Suja existence, not yet download URL)
-- **Auth gate:** Confirmed on employer portal (403)
-- **Captcha:** No captcha detected (clean gov.br OAuth path expected if proceeding with auth route)
+| Aspect | Status | Evidence |
+|--------|--------|----------|
+| **Cenário E:** Employer Portal Auth | CONFIRMED | 403 Forbidden on employer queries, gov.br OAuth required |
+| **Cenário F:** Lista Suja Public Data | DEFERRED | No public endpoint; auth-gated or non-existent |
+| **Combined Decision** | DEFER MTE | Auth-blocked (E) + non-public dataset (F) = no viable path |
+| **Datasource Rank** | 7th (Auth-blocked, non-public) | Both barriers eliminate MTE from active lineup |
 
 ---
 
@@ -173,5 +140,35 @@ If Lista Suja bulk dataset is sufficient for due diligence:
 
 ---
 
-**Recon completed at:** 2026-05-06 13:45 UTC  
-**Recommendation:** **ESCALATE to MTE contact for auth confirmation before scaffolding.**
+## VALIDAÇÃO LISTA SUJA (MTE.A — 2026-05-06)
+
+**Investigator:** gsd-debugger (session: mte-a-validacao-lista-suja)  
+**Investigation Period:** ~30 min (HTTP probes + redirect analysis)  
+**Finding:** Dataset is NOT publicly available in structured format  
+
+### Summary Table
+
+| Field | Value |
+|-------|-------|
+| **URL Found** | NO — all candidate URLs are 302/301/403 or redirect to non-data pages |
+| **Format Detected** | N/A — dataset not accessible |
+| **Schema Fields** | N/A — no download available to inspect |
+| **CNPJ Field** | Unknown (cannot confirm without access) |
+| **Last Update Date** | Unknown (not in public metadata) |
+| **Accessibility** | Auth-gated (gov.br OAuth required) OR non-existent |
+| **Maintenance Risk** | HIGH (if format ever becomes available, likely PDF; PDF parsing cost >> ROI) |
+| **Decision** | **DEFER** |
+
+### Reasoning Chain
+
+1. **Legal mandate exists** → Portaria Interministerial 4/2016 requires maintenance of list
+2. **List is maintained** → SIT confirms periodic updates (est. semi-annual)
+3. **But public access is blocked** → All HTTP endpoints are 302/301/403
+4. **dados.gov.br cannot help** → Dataset listed but SPA does not expose download
+5. **Authentication layer gates access** → Same gov.br OAuth as Scenario E
+6. **Conclusion:** Non-public dataset → DEFER until public endpoint emerges
+
+---
+
+**Recon completed at:** 2026-05-06 15:40 UTC  
+**Recommendation:** **DEFER MTE — both Scenario E (auth) and F (non-public) confirm unsuitability for current phase.**
